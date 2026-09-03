@@ -1,6 +1,5 @@
 # EdgeAI_Based_Solar_Panel_Health_Monitoring_System
 
-# Edge AI-Based Solar Panel Health Monitoring System
 
 An end-to-end Edge AI + IoT project that monitors a solar panel's health in real time using a multi-sensor ESP32 setup, an on-device TinyML classifier, and a live Node-RED dashboard.
 
