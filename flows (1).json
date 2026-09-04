@@ -1,0 +1,226 @@
+[
+    {
+        "id": "solar_tab_1",
+        "type": "tab",
+        "label": "Solar Panel Monitoring",
+        "disabled": false,
+        "info": "Edge AI-Based Solar Panel Health Monitoring System.\nRefer to Solar_Panel_Internship_Report_Ashlesh_Y_Saliyan.pdf for full project details.",
+        "env": []
+    },
+    {
+        "id": "mqtt_broker_hivemq",
+        "type": "mqtt-broker",
+        "name": "HiveMQ Cloud",
+        "broker": "YOUR_CLUSTER_URL.s1.eu.hivemq.cloud",
+        "port": "8883",
+        "clientid": "NodeRED_Solar_Dashboard",
+        "usetls": true,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "closeTopic": "",
+        "willTopic": ""
+    },
+    {
+        "id": "mqtt_in_node",
+        "type": "mqtt in",
+        "z": "solar_tab_1",
+        "name": "ESP32 Solar Telemetry",
+        "topic": "solar/telemetry",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt_broker_hivemq",
+        "x": 150,
+        "y": 120,
+        "wires": [
+            [
+                "process_payload_fn"
+            ]
+        ]
+    },
+    {
+        "id": "process_payload_fn",
+        "type": "function",
+        "z": "solar_tab_1",
+        "name": "Process ESP32 MQTT Payload",
+        "func": "const incoming = msg.payload;\n\n// Ensure payload is a valid object\nif (!incoming || typeof incoming !== 'object') {\n    return null;\n}\n\n// Parse incoming metrics safely from ESP32\nconst voltage = +(incoming.voltage || 0).toFixed(2);\nconst current = +(incoming.current || 0).toFixed(2);\nconst power = +(incoming.power || (voltage * current)).toFixed(2);\nconst temp = +(incoming.temp || 0).toFixed(1);\nconst light = Math.floor(incoming.light || 0);\nconst status = incoming.status || \"Healthy\";\nconst alert = incoming.alert || \"NO FAULT DETECTED\";\n\nlet color = \"#00E676\";\nif (status.includes(\"Dust\")) color = \"#FFB300\";\nelse if (status.includes(\"Shade\")) color = \"#FFF176\";\nelse if (status.includes(\"Temp\") || status.includes(\"Overheating\")) color = \"#FF5252\";\nelse if (status.includes(\"Fault\")) color = \"#FF1744\";\n\nconst confidence = incoming.confidence || 99;\nconst timeStr = new Date().toLocaleTimeString();\n\n// Power generation is derived from actual voltage unless explicitly provided\nconst genStatus = incoming.gen || (voltage > 0.2 ? \"Active\" : \"Inactive\");\n\nconst state = {\n    row1: { voltage, current, power, temp, light },\n    row2: { status, color, confidence, alert, gen: genStatus },\n    row3: {\n        panelHealth: status === \"Healthy\" ? \"Normal\" : status,\n        battery: incoming.battery || \"Connected\",\n        gen: genStatus\n    },\n    row4: { voltage, current, power, temp, light },\n    row5: {\n        esp: \"ONLINE\",\n        wifi: \"CONNECTED\",\n        mqtt: \"LIVE STREAM ACTIVE\",\n        time: timeStr\n    },\n    row6: alert\n};\n\nflow.set('systemState', state);\nreturn { payload: state };",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 120,
+        "wires": [
+            [
+                "render_view_fn"
+            ]
+        ]
+    },
+    {
+        "id": "view_selector_dropdown",
+        "type": "ui_dropdown",
+        "z": "solar_tab_1",
+        "name": "View Selector Dropdown",
+        "label": "Select Dashboard Section",
+        "tooltip": "",
+        "place": "Choose section to display",
+        "group": "solar_dashboard_group",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "multiple": false,
+        "options": [
+            {
+                "label": "Live Parameters (Voltage, Current, Power, Temp, Light)",
+                "value": "row1",
+                "type": "str"
+            },
+            {
+                "label": "AI Health Prediction",
+                "value": "row2",
+                "type": "str"
+            },
+            {
+                "label": "System Status",
+                "value": "row5",
+                "type": "str"
+            }
+        ],
+        "payload": "",
+        "topic": "topic",
+        "topicType": "msg",
+        "className": "",
+        "x": 150,
+        "y": 220,
+        "wires": [
+            [
+                "store_view_selection_fn"
+            ]
+        ]
+    },
+    {
+        "id": "store_view_selection_fn",
+        "type": "function",
+        "z": "solar_tab_1",
+        "name": "Store View Selection",
+        "func": "flow.set('selectedRow', msg.payload);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 220,
+        "wires": [
+            [
+                "render_view_fn"
+            ]
+        ]
+    },
+    {
+        "id": "render_view_fn",
+        "type": "function",
+        "z": "solar_tab_1",
+        "name": "Render Selected View",
+        "func": "const selectedRow = flow.get('selectedRow') || \"row2\";\nconst state = flow.get('systemState');\nif (!state) return null;\n\nlet content = \"\";\n\nswitch (selectedRow) {\n    case \"row1\":\n        content = `<h3>Live Parameters</h3>\n            <div>Voltage: ${state.row1.voltage} V</div>\n            <div>Current: ${state.row1.current} A</div>\n            <div>Power: ${state.row1.power} W</div>\n            <div>Temperature: ${state.row1.temp} \\u00b0C</div>\n            <div>Light Intensity: ${state.row1.light} Lux</div>`;\n        break;\n    case \"row2\":\n        content = `<h3>AI Health Prediction</h3>\n            <span style=\"background-color:${state.row2.color}\"></span>\n            <span>${state.row2.status}</span>\n            <div>Confidence: ${state.row2.confidence}%</div>\n            <div>Power Generation: ${state.row2.gen}</div>`;\n        break;\n    case \"row5\":\n        content = `<h3>System Status</h3>\n            <div>ESP32: ${state.row5.esp}</div>\n            <div>WiFi: ${state.row5.wifi}</div>\n            <div>MQTT: ${state.row5.mqtt}</div>\n            <div>Last Update: ${state.row5.time}</div>`;\n        break;\n}\n\n// Live chart now updates on every message, regardless of which view is selected\nconst chartMsgs = [\n    { payload: state.row1.voltage, topic: \"Voltage (V)\" },\n    { payload: state.row1.current, topic: \"Current (A)\" },\n    { payload: state.row1.power, topic: \"Power (W)\" },\n    { payload: state.row1.temp, topic: \"Temperature (\\u00b0C)\" },\n    { payload: state.row1.light, topic: \"Light (Lux)\" }\n];\n\nreturn [{ payload: content }, chartMsgs];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 650,
+        "y": 160,
+        "wires": [
+            [
+                "dynamic_content_display"
+            ],
+            [
+                "live_chart_display"
+            ]
+        ]
+    },
+    {
+        "id": "dynamic_content_display",
+        "type": "ui_template",
+        "z": "solar_tab_1",
+        "group": "solar_dashboard_group",
+        "name": "Dynamic Content Display",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "format": "html",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "template": "<div style=\"padding:10px;\">\n    {{msg.payload}}\n</div>",
+        "x": 900,
+        "y": 130,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "live_chart_display",
+        "type": "ui_chart",
+        "z": "solar_tab_1",
+        "name": "Live Chart Display",
+        "group": "solar_dashboard_group",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "label": "Live Chart",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a"
+        ],
+        "useOneColor": false,
+        "useUTC": false,
+        "x": 900,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "solar_dashboard_group",
+        "type": "ui_group",
+        "name": "Solar View Selector",
+        "tab": "solar_ui_tab",
+        "order": 1,
+        "disp": true,
+        "width": "12",
+        "collapse": false
+    },
+    {
+        "id": "solar_ui_tab",
+        "type": "ui_tab",
+        "name": "Solar Panel Monitor",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]
