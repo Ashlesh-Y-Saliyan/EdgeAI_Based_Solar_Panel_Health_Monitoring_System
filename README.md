@@ -100,4 +100,3 @@ The Node-RED dashboard subscribes to the MQTT telemetry topic and provides:
 ## Acknowledgements
 
 Built during an internship at **RDL Technologies Pvt Ltd**, under the guidance of Ms. Sharanya.
-  
