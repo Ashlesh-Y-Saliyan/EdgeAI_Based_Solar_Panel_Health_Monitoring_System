@@ -1,5 +1,4 @@
-# EdgeAI_Based_Solar_Panel_Health_Monitoring_System
-
+# Edge AI-Based Solar Panel Health Monitoring System
 
 An end-to-end Edge AI + IoT project that monitors a solar panel's health in real time using a multi-sensor ESP32 setup, an on-device TinyML classifier, and a live Node-RED dashboard.
 
@@ -81,9 +80,16 @@ The Node-RED dashboard subscribes to the MQTT telemetry topic and provides:
 
 ## Repository Contents
 
-- `Solar_Panel_Internship_Report_Ashlesh_Y_Saliyan.pdf` — full project report (architecture, methodology, ML pipeline details, results, and source code appendix)
-- Firmware source (Arduino sketch)
-- Node-RED flow (function node source code)
+| File | Description |
+|---|---|
+| `Solar_Panel_Internship_Report_Ashlesh_Y_Saliyan.pdf` | Full project report — architecture, methodology, ML pipeline details, results, and source code appendix |
+| `Solar_panel_health_monitoring_system.ino` | ESP32 firmware — sensor reading, on-device inference call, and MQTT publish logic |
+| `flows.json` | Node-RED flow export — MQTT input, payload processing, view-selector dashboard, and live chart |
+
+### Setup Notes
+
+- **Firmware**: place `Solar_panel_health_monitoring_system.ino` inside a folder of the same name (Arduino IDE requires this). Fill in your WiFi credentials, HiveMQ Cloud broker details, and drop in your own exported Edge Impulse inferencing library and `run_classifier()` call where marked in the code.
+- **Node-RED flow**: import `flows.json` via the Node-RED menu (☰ → Import), then update the `mqtt-broker` node with your own HiveMQ Cloud cluster URL and credentials before deploying.
 
 ## Future Scope
 
@@ -94,3 +100,4 @@ The Node-RED dashboard subscribes to the MQTT telemetry topic and provides:
 ## Acknowledgements
 
 Built during an internship at **RDL Technologies Pvt Ltd**, under the guidance of Ms. Sharanya.
+  
